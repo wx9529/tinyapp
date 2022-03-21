@@ -16,5 +16,8 @@
   "bugs": {
     "url": "https://github.com/wx9529/tinyapp/issues"
   },
-  "homepage": "https://github.com/wx9529/tinyapp#readme"
+  "homepage": "https://github.com/wx9529/tinyapp#readme",
+  "dependencies": {
+    "express": "^4.17.3"
+  }
 }
