@@ -2,6 +2,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const app = express();
 const PORT = 8080;
+//Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
 app.set("view engine", "ejs");
 
@@ -27,30 +28,24 @@ app.get("/urls", (req, res) => {
   const templateVars = { urls: urlDatabase };
   res.render("urls_index", templateVars);
 });
-
 app.post("/urls", (req, res) => {
-  console.log(req.body);
-  // res.send("ok");
+  console.log("req.body", req.body);
   const short_url = generateRandomString();
   urlDatabase[short_url] = req.body.longURL;
-  console.log(urlDatabase);
-  res.redirect(`/urls/${short_url}`);
+  res.redirect(`/u/${short_url}`);
 });
-
 app.get("/urls/new", (req, res) => {
   res.render("urls_new");
 });
-
+app.get("/u/:shortURL", (req, res) => {
+  res.redirect(urlDatabase[req.params.shortURL]);
+});
 app.get("/urls/:shortURL", (req, res) => {
   const templateVars = {
     shortURL: req.params.shortURL,
     longURL: urlDatabase[req.params.shortURL],
   };
   res.render("urls_show", templateVars);
-});
-
-app.get("/u/:shortURL", (req, res) => {
-  res.redirect(urlDatabase[req.params.shortURL]);
 });
 
 app.get("/hello", (req, res) => {
