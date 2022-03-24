@@ -8,8 +8,6 @@
       <div class="navbar-nav">
         <a class="nav-item nav-link" href="/urls">My URLs</a>
         <a class="nav-item nav-link" href="/urls/new">Create New URL</a>
-      </div>
-    </div>
     <%if (user === undefined) { %>
         <a href="/register" class="nav-link">Register</a> 
         <a href="/login" class="nav-link">Login</a>
@@ -18,6 +16,8 @@
       <label>Logged In As <%= user.email %>!
       <button type="submit" class="btn btn-outline-dark">Logout</button>
     </form>
+     </div>
+    </div>
     <% } %>
   </nav>
 </header>
