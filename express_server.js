@@ -78,7 +78,7 @@ app.get("/", (req, res) => {
 
 app.get("/urls", (req, res) => {
   if (req.cookies["user_id"] === undefined) {
-    res.render("<h1>Please log in or register first.</h1>");
+    res.send("<h1>Please log in or register first.</h1>");
     return;
   }
   const loggedInUserId = req.cookies["user_id"];
@@ -166,7 +166,7 @@ app.post("/urls/:shortURL/delete", (req, res) => {
   }
   //user not logged in
   if (currentUserId === undefined) {
-    res.render("<h1>Please log in or register first.</h1>");
+    res.send("<h1>Please log in or register first.</h1>");
     return;
   }
   //user is logged in but does not own the URL with the given id
@@ -193,7 +193,7 @@ app.post("/urls/:id", (req, res) => {
   }
   //user not logged in
   if (currentUserId === undefined) {
-    res.render("<h1>Please log in or register first.</h1>");
+    res.send("<h1>Please log in or register first.</h1>");
     return;
   }
   //user is logged in but does not own the URL with the given id
@@ -232,7 +232,7 @@ app.get("/urls/:shortURL", (req, res) => {
   }
   //user not logged in
   if (currentUserId === undefined) {
-    res.render("<h1>Please log in or register first.</h1>");
+    res.send("<h1>Please log in or register first.</h1>");
     return;
   }
   //user is logged in but does not own the URL with the given id
