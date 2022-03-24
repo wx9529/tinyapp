@@ -18,7 +18,7 @@ app.use(
   cookieSession({
     name: "session",
     keys: ["secure", "checker", "keys"],
-    // Cookie Options
+    // Cookie Option
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
   })
 );
