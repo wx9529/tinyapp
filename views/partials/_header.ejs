@@ -11,8 +11,8 @@
       </div>
     </div>
     <%if (user === undefined) { %>
-        <a href="/register" class="link-primary">Register</a> 
-        <a href="/login" class="link-primary">Login</a>
+        <a href="/register" class="nav-link">Register</a> 
+        <a href="/login" class="nav-link">Login</a>
     <% } else{ %>
     <form method="POST" action="/logout">
       <label>Logged In As <%= user.email %>!
