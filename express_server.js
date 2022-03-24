@@ -1,9 +1,10 @@
 const urlExists = require("url-exists");
 const express = require("express");
 const bodyParser = require("body-parser");
+const bcrypt = require("bcryptjs");
+const cookieParser = require("cookie-parser");
 const app = express();
 const PORT = 8080;
-const cookieParser = require("cookie-parser");
 
 //Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -106,6 +107,7 @@ app.post("/register", (req, res) => {
   // If the e-mail or password are empty strings, send back a response with the 400 status code.
   const email = req.body.email;
   const password = req.body.password;
+  const hashedPassword = bcrypt.hashSync(password, 10);
   console.log(users);
   if (email === "" || password === "") {
     res.status(400).send("<h1>email or password is empty<h1>");
@@ -117,7 +119,7 @@ app.post("/register", (req, res) => {
     return;
   }
   const id = generateRandomString();
-  users[id] = { id: id, email: req.body.email, password: req.body.password };
+  users[id] = { id: id, email: email, password: hashedPassword };
   res.cookie("user_id", id);
   res.redirect("/urls");
   console.log(users);
@@ -126,13 +128,14 @@ app.post("/register", (req, res) => {
 app.post("/login", (req, res) => {
   const candidateEmailAddress = req.body.email;
   const candidatePassword = req.body.password;
+
   if (!emailChecker(candidateEmailAddress)) {
     return res.status(403).send("<h1>email not found<h1>");
   }
-
-  if (findUserByEmail(candidateEmailAddress).password !== candidatePassword) {
+  if (!bcrypt.compareSync(candidatePassword, hashedPassword)) {
     return res.status(403).send("<h1>password does not match<h1>");
   }
+  const hashedPassword = findUserByEmail(candidateEmailAddress).password;
   res.cookie("user_id", findUserByEmail(candidateEmailAddress).id);
   res.redirect("/urls");
 });
