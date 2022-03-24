@@ -2,15 +2,28 @@ const urlExists = require("url-exists");
 const express = require("express");
 const bodyParser = require("body-parser");
 const bcrypt = require("bcryptjs");
-const cookieParser = require("cookie-parser");
+const cookieSession = require("cookie-session");
+const {
+  getUserByEmail,
+  emailChecker,
+  urlsForUser,
+  generateRandomString,
+} = require("./helpers");
+// const cookieParser = require("cookie-parser");
 const app = express();
 const PORT = 8080;
 
 //Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(cookieParser());
+app.use(
+  cookieSession({
+    name: "session",
+    keys: ["secure", "checker", "keys"],
+    // Cookie Options
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+  })
+);
 app.set("view engine", "ejs");
-
 const urlDatabase = {
   b6UTxQ: {
     longURL: "https://www.tsn.ca",
@@ -36,70 +49,35 @@ const users = {
 
 const characters =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-function generateRandomString() {
-  let res = "";
-  for (let i = 0; i < 6; i++) {
-    res += characters.charAt(Math.floor(Math.random() * characters.length));
-  }
-  return res;
-}
-function emailChecker(email) {
-  for (const user in users) {
-    if (users[user].email === email) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function findUserByEmail(email) {
-  for (const user in users) {
-    if (users[user].email === email) {
-      return users[user];
-    }
-  }
-}
-
-function urlsForUser(id) {
-  const res = {};
-  for (const item in urlDatabase) {
-    if (id === urlDatabase[item].userID) {
-      res[item] = {};
-      res[item]["longURL"] = urlDatabase[item].longURL;
-      res[item]["userID"] = urlDatabase[item].userID;
-    }
-  }
-  return res;
-}
 
 //Routes
 
 app.get("/", (req, res) => {
-  if (req.cookies["user_id"] !== undefined) {
+  if (req.session.user_id !== undefined) {
     return res.redirect("/urls");
   }
   return res.redirect("/login");
 });
 
 app.get("/urls", (req, res) => {
-  if (req.cookies["user_id"] === undefined) {
+  if (req.session.user_id === undefined) {
     res.send("<h1>Please log in or register first.</h1>");
     return;
   }
-  const loggedInUserId = req.cookies["user_id"];
-  const filteredDatabase = urlsForUser(loggedInUserId);
+  const loggedInUserId = req.session.user_id;
+  const filteredDatabase = urlsForUser(loggedInUserId, urlDatabase);
   const templateVars = {
     urls: filteredDatabase,
-    user: users[req.cookies["user_id"]],
+    user: users[req.session.user_id],
   };
   res.render("urls_index", templateVars);
 });
 
 app.get("/register", (req, res) => {
-  if (req.cookies["user_id"] !== undefined) {
+  if (req.session.user_id !== undefined) {
     return res.redirect("/urls");
   }
-  const templateVars = { user: req.cookies["user_id"] };
+  const templateVars = { user: req.session.user_id };
   res.render("urls_register", templateVars);
 });
 
@@ -108,57 +86,56 @@ app.post("/register", (req, res) => {
   const email = req.body.email;
   const password = req.body.password;
   const hashedPassword = bcrypt.hashSync(password, 10);
-  console.log(users);
   if (email === "" || password === "") {
     res.status(400).send("<h1>email or password is empty<h1>");
     return;
   }
   // If someone tries to register with an email that is already in the users object
-  if (emailChecker(email)) {
+  if (emailChecker(email, users)) {
     res.status(400).send("<h1>email already exists<h1>");
     return;
   }
-  const id = generateRandomString();
+  const id = generateRandomString(characters);
   users[id] = { id: id, email: email, password: hashedPassword };
-  res.cookie("user_id", id);
+  req.session.user_id = id;
   res.redirect("/urls");
-  console.log(users);
 });
 
 app.post("/login", (req, res) => {
   const candidateEmailAddress = req.body.email;
   const candidatePassword = req.body.password;
 
-  if (!emailChecker(candidateEmailAddress)) {
+  if (!emailChecker(candidateEmailAddress, users)) {
     return res.status(403).send("<h1>email not found<h1>");
   }
+  console.log("users", getUserByEmail(candidateEmailAddress, users));
+  const hashedPassword = getUserByEmail(candidateEmailAddress, users).password;
   if (!bcrypt.compareSync(candidatePassword, hashedPassword)) {
     return res.status(403).send("<h1>password does not match<h1>");
   }
-  const hashedPassword = findUserByEmail(candidateEmailAddress).password;
-  res.cookie("user_id", findUserByEmail(candidateEmailAddress).id);
+  req.session.user_id = getUserByEmail(candidateEmailAddress, users).id;
   res.redirect("/urls");
 });
 
 app.get("/login", (req, res) => {
-  if (req.cookies["user_id"] !== undefined) {
+  if (req.session.user_id !== undefined) {
     return res.redirect("urls");
   }
-  const templateVars = { user: req.cookies["user_id"] };
+  const templateVars = { user: req.session.user_id };
   res.render("urls_login", templateVars);
 });
 
 app.post("/logout", (req, res) => {
-  res.clearCookie("user_id");
+  req.session = null;
   res.redirect("/urls");
 });
 
 app.post("/urls", (req, res) => {
-  if (users[req.cookies["user_id"]] !== undefined) {
-    const short_url = generateRandomString();
+  if (users[req.session.user_id] !== undefined) {
+    const short_url = generateRandomString(characters);
     urlDatabase[short_url] = {};
     urlDatabase[short_url].longURL = req.body.longURL;
-    urlDatabase[short_url].userID = req.cookies["user_id"];
+    urlDatabase[short_url].userID = req.session.user_id;
     res.redirect(`/urls/${short_url}`);
     return;
   }
@@ -169,9 +146,8 @@ app.post("/urls", (req, res) => {
 
 //delete end point
 app.post("/urls/:shortURL/delete", (req, res) => {
-  const currentUserId = req.cookies["user_id"];
+  const currentUserId = req.session.user_id;
   const currentShortURL = req.params.shortURL;
-  console.log(urlDatabase[currentShortURL]);
   //If a URL with the given id does not exist
   if (urlDatabase[currentShortURL] === undefined) {
     res.send("<h1>Error: a URL with the given id does not exist<h1>");
@@ -196,9 +172,9 @@ app.post("/urls/:shortURL/delete", (req, res) => {
 
 //update end point
 app.post("/urls/:id", (req, res) => {
-  const currentUserId = req.cookies["user_id"];
+  const currentUserId = req.session.user_id;
   const currentShortURL = req.params.id;
-  console.log(urlDatabase[currentShortURL]);
+
   //If a URL with the given id does not exist
   if (urlDatabase[currentShortURL] === undefined) {
     res.send("<h1>Error: a URL with the given id does not exist<h1>");
@@ -223,10 +199,10 @@ app.post("/urls/:id", (req, res) => {
 
 app.get("/urls/new", (req, res) => {
   // If someone is not logged in when trying to access /urls/new, redirect them to the login page. Ensure that a none logged in user cannot add a new url with a POST request to /urls.
-  if (users[req.cookies["user_id"]] === undefined) {
+  if (users[req.session.user_id] === undefined) {
     return res.redirect("/login");
   }
-  const templateVars = { user: users[req.cookies["user_id"]] };
+  const templateVars = { user: users[req.session.user_id] };
   res.render("urls_new", templateVars);
 });
 
@@ -245,7 +221,7 @@ app.get("/u/:shortURL", (req, res) => {
 
 //update end point
 app.get("/urls/:shortURL", (req, res) => {
-  const currentUserId = req.cookies["user_id"];
+  const currentUserId = req.session.user_id;
   const currentShortURL = req.params.shortURL;
   //If a URL with the given id does not exist
   if (urlDatabase[currentShortURL] === undefined) {
