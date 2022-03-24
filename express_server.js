@@ -1,3 +1,4 @@
+const urlExists = require("url-exists");
 const express = require("express");
 const bodyParser = require("body-parser");
 const app = express();
@@ -73,7 +74,10 @@ function urlsForUser(id) {
 //Routes
 
 app.get("/", (req, res) => {
-  res.send("Hello!");
+  if (req.cookies["user_id"] !== undefined) {
+    return res.redirect("/urls");
+  }
+  return res.redirect("/login");
 });
 
 app.get("/urls", (req, res) => {
@@ -91,6 +95,9 @@ app.get("/urls", (req, res) => {
 });
 
 app.get("/register", (req, res) => {
+  if (req.cookies["user_id"] !== undefined) {
+    return res.redirect("/urls");
+  }
   const templateVars = { user: req.cookies["user_id"] };
   res.render("urls_register", templateVars);
 });
@@ -101,7 +108,7 @@ app.post("/register", (req, res) => {
   const password = req.body.password;
   console.log(users);
   if (email === "" || password === "") {
-    res.status(400).send("<h1>Oh email is empty<h1>");
+    res.status(400).send("<h1>email or password is empty<h1>");
     return;
   }
   // If someone tries to register with an email that is already in the users object
@@ -131,6 +138,9 @@ app.post("/login", (req, res) => {
 });
 
 app.get("/login", (req, res) => {
+  if (req.cookies["user_id"] !== undefined) {
+    return res.redirect("urls");
+  }
   const templateVars = { user: req.cookies["user_id"] };
   res.render("urls_login", templateVars);
 });
@@ -218,7 +228,16 @@ app.get("/urls/new", (req, res) => {
 });
 
 app.get("/u/:shortURL", (req, res) => {
-  res.redirect(urlDatabase[req.params.shortURL].longURL);
+  if (urlDatabase[req.params.shortURL] === undefined) {
+    return res.send("<h1>Given URL does not exist</h1>");
+  }
+  const URL = urlDatabase[req.params.shortURL].longURL;
+  urlExists(URL, function (err, exists) {
+    if (exists) {
+      return res.redirect(URL);
+    }
+    res.send("<h1>Given URL does not exist</h1>");
+  });
 });
 
 //update end point
